@@ -4,6 +4,8 @@ import os
 from core import urlproc
 from core import fileproc
 
+NEWLINE_ESCAPED = "%0A"
+
 
 def clone_repo(git_path):
     """
@@ -46,13 +48,14 @@ def check_repo(file_paths, print_all, white_listed_urls, white_listed_patterns):
     check all urls extracted from all files in a repository.
     """
     # loop files
+    results = []
     for file in file_paths:
 
         # collect links from each file
         urls = fileproc.collect_links_from_file(file)
 
         # eliminate white listed urls and white listed white listed patterns
-        if  len(white_listed_urls) > 0 or len(white_listed_patterns) > 0:
+        if len(white_listed_urls) > 0 or len(white_listed_patterns) > 0:
             urls = [url for url in urls
                     if not white_listed(url,
                                         white_listed_urls,
@@ -61,7 +64,8 @@ def check_repo(file_paths, print_all, white_listed_urls, white_listed_patterns):
         # if some links are found, check them
         if urls != []:
             print("\n", file, "\n", "-" * len(file))
-            urlproc.check_urls(file, urls)
+            file_results = urlproc.check_urls(file, urls)
+            results.append(f"#### {file}{NEWLINE_ESCAPED}{file_results}")
 
         # if no urls are found, mention it if required
         else:
@@ -69,18 +73,21 @@ def check_repo(file_paths, print_all, white_listed_urls, white_listed_patterns):
                 print("\n", file, "\n", "-" * len(file))
                 print("No urls found.")
 
+    output = f"{NEWLINE_ESCAPED}{NEWLINE_ESCAPED}".join(results)
+    os.system(f"echo \"::set-output name=urls::{output}\"")
+
 
 if __name__ == "__main__":
-
     # read input variables
     git_path = os.getenv("INPUT_GIT_PATH", "")
     file_types = os.getenv("INPUT_FILE_TYPES", "").split(",")
     print_all = os.getenv("INPUT_PRINT_ALL", "")
     white_listed_urls = os.getenv("INPUT_WHITE_LISTED_URLS", "").split(",")
-    white_listed_patterns = os.getenv("INPUT_WHITE_LISTED_PATTERNS", "").split(",")
+    white_listed_patterns = os.getenv(
+        "INPUT_WHITE_LISTED_PATTERNS", "").split(",")
 
     # clone project repo
-    base_path = clone_repo(git_path)
+    base_path = os.path.basename(git_path)
 
     # get all file paths
     file_paths = fileproc.get_file_paths(base_path, file_types)
@@ -90,4 +97,4 @@ if __name__ == "__main__":
 
     # delete repo when done
     deletion_status = del_repo(base_path)
-    print("Done.")
+    print("Finished")
